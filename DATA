@@ -1,0 +1,256 @@
+PARTE 1: Modificación Visual en la Galería (Checkbox ➔ Botón Transparente)
+Esto se aplica a tu pantalla de selección (scrSALIDAS o scrDATA) donde quieres seleccionar ítems tocando toda la fila en lugar de atinarle a un cuadrito pequeño.
+
+Pasos:
+
+Ve a tu galería (Gallery1_1 en scrSALIDAS).
+
+Entra a editar el primer ítem (haz clic en el lápiz o selecciona la primera fila).
+
+Elimina el control CheckboxCanvas1.
+
+Inserta un Botón (Button) dentro de la fila de la galería.
+
+Asegúrate de que el botón cubra toda el área de la fila (estíralo).
+
+Configura las propiedades del botón para hacerlo invisible pero funcional:
+
+Código para el Botón Transparente:
+
+Propiedad,Valor / Código,Explicación
+Text,"""""","Borra el texto ""Button""."
+Fill,"RGBA(0, 0, 0, 0)",Lo hace 100% transparente.
+HoverFill,"RGBA(0, 0, 0, 0.05)",(Opcional) Un gris muy suave cuando pasas el mouse.
+PressedFill,"RGBA(0, 0, 0, 0.1)",(Opcional) Un gris suave al hacer clic.
+OnSelect,(Ver código abajo),La lógica para seleccionar/deseleccionar.
+
+Código para la propiedad OnSelect del Botón Transparente: Este código revisa si ya está en el carrito. Si está, lo quita; si no, lo agrega.
+
+If(
+    ThisItem in colCarrito,
+    // Si ya existe, lo quitamos
+    Remove(colCarrito, ThisItem),
+    
+    // Si no existe, lo agregamos con los datos necesarios
+    Collect(
+        colCarrito,
+        {
+            CODIGO1: ThisItem.CODIGO1,
+            TITULO_REAL: ThisItem.Title, // IMPORTANTE para tu validación de doble llave
+            DESCRPCION: ThisItem.DESCRIPCION1,
+            'STOCK ACTUAL': ThisItem.'STOCK ACTUAL',
+            'UNIDAD MEDIDA': ThisItem.'UNIDAD MEDIDA',
+            CRITERIO: ThisItem.CRITERIO,
+            CantidadSolicitada: 0
+        }
+    )
+)
+
+
+
+ARTE 2: Pantalla para Agregar Nuevos Productos (scrNuevoProducto)
+Estos son los pasos para configurar la pantalla de entrada de datos masiva (Data Entry) que me mostraste en el YAML.
+
+1. Configuración de la Pantalla (scrNuevoProducto)
+Propiedad OnVisible: Esto prepara la "hoja en blanco" cada vez que entras.
+
+ClearCollect(
+    colMisProductos, 
+    {
+        NombreProducto: "", 
+        CodigoAuto: "", 
+        Unidad: "", 
+        Bodega: "", 
+        Estante: ""
+    }
+)
+
+
+2. Configuración de la Galería (GalleryNew)
+Items: colMisProductos
+
+3. Configuración de los Controles DENTRO de la Galería
+A. Dropdown de Producto (ddFilaProducto)
+
+Items: DB (o tu lista maestra de productos).
+
+OnChange:
+
+Patch(colMisProductos, ThisItem, {NombreProducto: Self.Selected.CATEGORIA})
+// Nota: Asegúrate de usar la columna correcta (.CATEGORIA o .Title)
+
+B. Etiqueta de Código Automático (lblCodigoGenerado)
+
+Text:
+
+With(
+    {
+        Seleccion: ddFilaProducto.Selected.CATEGORIA,
+        Prefijo: Upper(Left(ddFilaProducto.Selected.CATEGORIA, 4))
+    },
+    With(
+        {
+            // Cuenta cuántos existen en la base de datos REAL
+            CantidadExistente: CountRows(Filter(DB, CATEGORIA = Seleccion))
+        },
+        If(
+            IsBlank(Seleccion), 
+            "---", 
+            Prefijo & Text(CantidadExistente + 1, "00")
+        )
+    )
+)
+
+
+C. Inputs de Texto (txtBodega, txtEstante, txtUnidad) Para cada uno, configura esto (cambiando el nombre del campo según corresponda):
+
+Default: ThisItem.Bodega (o Estante, o Unidad)
+
+OnChange: Patch(colMisProductos, ThisItem, {Bodega: Self.Text})
+
+D. Botón Agregar Fila (+)
+
+OnSelect:
+
+Collect(colMisProductos, {NombreProducto: "", CodigoAuto: "", Unidad: "", Bodega: "", Estante: ""})
+
+E. Icono de Basura (Eliminar Fila)
+
+OnSelect: Remove(colMisProductos, ThisItem)
+
+
+
+PARTE 3: Botón "Guardar Todo" (btnGuardar)
+Este es el botón final en scrNuevoProducto que envía todo a la base de datos DB.
+
+Propiedad OnSelect:
+
+// 1. Guardar todos los ítems de la colección en la base de datos
+ForAll(
+    colMisProductos,
+    Patch(
+        DB,
+        Defaults(DB),
+        {
+            // Izquierda: Nombre columna en DB (Sugerido por Power Apps)
+            // Derecha: Nombre columna en tu colección (colMisProductos)
+            
+            CATEGORIA: NombreProducto, 
+            CODIGO: CodigoAuto, // Asegúrate de recalcular o tomar el valor del label si es necesario
+            
+            // Revisa que estos nombres existan en tu DB (borra y reescribe si salen rojos)
+            AREA: Bodega,    
+            USO: Estante,
+            'UNIDAD MEDIDA': Unidad
+        }
+    )
+);
+
+// 2. Notificar éxito
+Notify("✅ Productos agregados correctamente.", NotificationType.Success);
+
+// 3. Limpiar y reiniciar para seguir agregando
+Clear(colMisProductos);
+Collect(colMisProductos, {NombreProducto: "", CodigoAuto: "", Unidad: "", Bodega: "", Estante: ""});
+
+
+
+
+PARTE 1: Código Corregido a Español (scrNuevoProducto)
+Aquí tienes el código para tu botón Guardar Todo en la pantalla de agregar productos nuevos, usando la sintaxis española.
+
+Propiedad OnSelect del botón btnGuardar:
+
+// 1. Guardar todos los ítems en la base de datos
+ForAll(
+    colMisProductos;
+    Patch(
+        DB;
+        Defaults(DB);
+        {
+            // Nota el uso de punto y coma dentro de las llaves
+            CATEGORIA: NombreProducto; 
+            CODIGO: CodigoAuto; 
+            AREA: Bodega;    
+            USO: Estante;
+            'UNIDAD MEDIDA': Unidad
+        }
+    )
+);;
+
+// 2. Notificar éxito
+Notify("✅ Productos agregados correctamente"; NotificationType.Success);;
+
+// 3. Limpiar y reiniciar
+Clear(colMisProductos);;
+Collect(colMisProductos; {NombreProducto: ""; CodigoAuto: ""; Unidad: ""; Bodega: ""; Estante: ""})
+
+
+PARTE 2: Nueva Pantalla scrPEDIDOS (Gestión de Pendientes)
+Esta pantalla mostrará lo que se solicitó en la pantalla anterior (que guardamos en la lista SALIDAS) y permitirá cambiar el estado de "PENDIENTE" a "ENTREGADO".
+
+Nota importante: Asumiré que agregaste la columna ESTADO en tu lista de SALIDAS (donde se guardan los pedidos), no en la de productos, ya que un mismo producto puede pedirse muchas veces.
+
+
+Paso 1: Configurar la Galería de Pedidos
+Crea una nueva pantalla llamada scrPEDIDOS.
+
+Inserta una Galería Vertical.
+
+En la propiedad Items de la galería, filtra para ver solo lo pendiente:
+
+
+Filter(SALIDAS; ESTADO = "PENDIENTE")
+
+Paso 2: Configurar los Controles DENTRO de la Galería
+Edita la primera fila de la galería e inserta:
+
+Label (Título): ThisItem.DESCRIPCION (o ThisItem.Title según tu DB).
+
+Label (Solicitante): ThisItem.RESPONSABLE (Para saber quién lo pidió).
+
+TextInput (Cantidad): Aquí está el truco para modificar la cantidad.
+
+Nombre: txtCantReal
+
+Default: ThisItem.SALIDA (O como se llame tu columna de cantidad solicitada).
+
+Format: TextFormat.Number
+
+Checkbox (Selección): Para marcar cuáles vas a entregar.
+
+Nombre: chkEntregar
+
+Text: "Entregar"
+Paso 3: El Botón "Guardar / Entregar Marcados"
+Fuera de la galería, coloca un botón "Confirmar Entrega". Este botón recorrerá la galería, buscará los que marcaste con el check, actualizará la cantidad (por si la cambiaste) y cambiará el estado.
+
+Propiedad OnSelect del botón:
+
+
+// Recorremos solo los ítems de la galería filtrada
+ForAll(
+    Filter(GaleriaPedidos.AllItems; chkEntregar.Value = true);
+    
+    Patch(
+        SALIDAS;
+        // Buscamos el registro original en la base de datos usando el ID
+        LookUp(SALIDAS; ID = ThisRecord.ID);
+        {
+            // 1. Actualizamos la cantidad por si decidiste entregar menos o más
+            // Usamos Value() porque el TextInput es texto
+            SALIDA: Value(txtCantReal.Text);
+            
+            // 2. Cambiamos el estado
+            ESTADO: "ENTREGADO";
+            
+            // Opcional: Guardar fecha real de entrega
+            FECHA_ENTREGA: Now()
+        }
+    )
+);;
+
+// Notificar y refrescar
+Notify("✅ Pedidos actualizados a ENTREGADO"; NotificationType.Success);;
+Refresh(SALIDAS)
+
