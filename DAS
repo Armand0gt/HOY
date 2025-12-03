@@ -1,0 +1,128 @@
+Respuesta corta: NO.
+
+Si usas el enlace completo que termina en AllItems.aspx, Power BI te dará un error o no encontrará la tabla correctamente.
+
+Para conectar Power BI a una Lista de SharePoint, solo necesitas la URL del SITIO principal, no la dirección de la lista específica.
+
+1. Cuál es el Link Correcto
+Supongamos que tu enlace completo (donde ves la lista) es así:
+
+❌ Incorrecto: https://tuempresa.sharepoint.com/sites/NombreDelSitio/Lists/NombreDeLaLista/AllItems.aspx
+
+✅ Correcto (Lo que debes pegar en Power BI): https://tuempresa.sharepoint.com/sites/NombreDelSitio
+
+Instrucciones:
+
+Copia el link de tu navegador.
+
+Borra todo lo que está después del nombre de tu sitio (borra /Lists/... y todo lo demás).
+
+Ese es el enlace que debes usar en el conector "SharePoint Online List".
+
+¡Esa es una excelente observación! Tienes toda la razón en que la forma de conectar es diferente, y esto confunde a mucha gente.
+
+La razón técnica es que Excel es un archivo, pero una Lista de SharePoint funciona como una base de datos.
+
+Aquí te explico la diferencia de forma sencilla:
+
+1. El caso del Excel en OneDrive (Conexión a un Archivo)
+Cuando conectas un Excel, Power BI necesita saber exactamente dónde está ese archivo específico. Es como si le dieras la dirección exacta de una casa: "Calle 5, Casa 20, Habitación 3".
+
+Por eso funciona el link largo: Le estás dando la ruta completa directa al objeto (el archivo Excel).
+
+Por qué parece "automático": Power BI tiene una función especial llamada "OneDrive Refresh". Si el archivo está en OneDrive, Power BI revisa cada hora si cambiaste algo y lo actualiza solo (sin que configures tanto).
+
+2. El caso de la Lista de SharePoint (Conexión a una Base de Datos)
+Una Lista de SharePoint no es un archivo suelto; es parte de un sistema más grande (el Sitio de SharePoint). AllItems.aspx es solo la página web para que tú (humano) veas los datos, no es la puerta para que Power BI (máquina) entre.
+
+Por qué NO funciona el link largo: Si le das el link terminado en AllItems.aspx, Power BI intenta leer eso como una página web, no como una tabla de datos. Se confunde.
+
+Cómo funciona: Tienes que darle solo la dirección del "Edificio" (el Sitio principal). Una vez Power BI entra al "Edificio", te muestra un menú con todas las "Oficinas" (las Listas) y tú marcas la que quieres (ej. Lista_Cultivos).
+
+
+
+
+Paso 1: Estandarizar Nombres de Columnas
+Para que Power BI pueda pegar una tabla debajo de la otra, las columnas clave deben llamarse exactamente igual en ambas tablas.
+
+Abre Power BI y ve a "Transformar datos" (abrir Power Query).
+
+Ve a la consulta INGRESOS:
+
+Asegúrate de que las columnas se llamen: Fecha, Codigo, Descripcion, UnidadMedida, CostoUnitario.
+
+Crea una Columna Personalizada llamada CantidadIngreso. La fórmula será: =[Cantidad] (o como se llame tu columna de cantidad original).
+
+Crea otra Columna Personalizada llamada CantidadSalida. La fórmula será: 0 (porque en ingresos no hay salidas).
+
+Ve a la consulta SALIDAS:
+
+Renombra las columnas para que coincidan con Ingresos: Fecha, Codigo (ojo, en tu foto se llama CODIGO1, cámbialo a Codigo), Descripcion, UnidadMedida.
+
+Crea una Columna Personalizada llamada CantidadIngreso. La fórmula será: 0.
+
+Crea otra Columna Personalizada llamada CantidadSalida. La fórmula será: =[Cantidad].
+
+Nota sobre Costo: Si en Salidas no tienes el costo, puedes poner 0 o null en una columna llamada CostoUnitario para que coincida con la de Ingresos.
+
+Paso 2: Crear la Tabla Maestra (Movimientos)
+Ahora vamos a juntar las dos tablas en una sola.
+
+Dentro de Power Query, en la pestaña Inicio, busca el botón "Anexar consultas" (Append Queries) y haz clic en la flechita para seleccionar "Anexar consultas para crear una nueva".
+
+Selecciona INGRESOS como primera tabla y SALIDAS como segunda tabla.
+
+Llámala "MOVIMIENTOS".
+
+¿Qué acabas de hacer? Ahora tienes una tabla gigante donde:
+
+Si hubo una compra el día 1, aparecerá con el dato en la columna CantidadIngreso y 0 en CantidadSalida.
+
+Si hubo un consumo el día 5, aparecerá como una nueva fila con la fecha del día 5, 0 en CantidadIngreso y el dato en CantidadSalida.
+
+Paso 3: Cargar y Visualizar
+Dale a "Cerrar y aplicar".
+
+Ve a la vista de Informe (el lienzo en blanco).
+
+Inserta una visualización de Tabla o Matriz.
+
+Arrastra los campos desde tu nueva tabla MOVIMIENTOS:
+
+Fecha
+
+Codigo
+
+Descripcion
+
+CantidadIngreso (Súmalo)
+
+CantidadSalida (Súmalo)
+
+CostoUnitario
+
+Paso 4: Calcular el Stock Actual (Medida DAX)
+Para saber cuánto te queda (Existencia), crea una Nueva Medida:
+
+Stock Actual = SUM(Movimientos[CantidadIngreso]) - SUM(Movimientos[CantidadSalida])
+
+Paso 5: Calcular el Costo Total (Opcional)
+Como pediste "Costo Total", esto depende de tu método de valoración. Lo más simple para empezar es multiplicar el ingreso por su costo:
+
+En la tabla INGRESOS (en Power Query), crea una columna CostoTotal = [Cantidad] * [CostoUnitario].
+
+En la tabla SALIDAS, crea una columna CostoTotal = 0 (a menos que calcules costo promedio, pero eso es avanzado).
+
+Al anexar, tendrás la columna CostoTotal lista para sumar en tu reporte.
+
+Resultado Final
+Tu tabla en Power BI se verá así automáticamente, sin importar que las fechas no coincidan:
+Fecha,Codigo,Descripcion,Ingreso,Salida,Stock (Medida)
+01/12/2025,FER01,Nitrato,50,0,50
+02/12/2025,GUA01,Guantes,0,10,-10 (Ojo aquí si no hubo ingreso previo)
+03/12/2025,FER01,Nitrato,0,5,45
+
+
+
+
+
